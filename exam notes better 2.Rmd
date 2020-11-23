@@ -1,0 +1,132 @@
+---
+title: "lg-glm model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("tidyverse")
+library("lmtest")
+load("/Users/joecorrea/Downloads/brfss_data/BRFSS2013_a.RData")
+attach(dat3)
+
+```
+
+
+```{r, message=FALSE}
+varb <- (X_AGE80 >=45) & (X_AGE80 <= 70) & (X_STATE == "Florida")
+datus2 <- subset(dat3, varb)
+detach(dat3)
+attach(datus2)
+
+```
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+
+#lm model 
+datus2$FLUSHOT6 <- as.numeric(datus2$FLUSHOT6)
+mode1 <- lm(FLUSHOT6 ~ MEDICARE + BPHIGH4 + X_SMOKER3, data = datus2)
+summary(mode1) 
+ 
+#statisically significant
+confint(mode1, level = 0.95)
+anova(mode1)
+
+# predicted values for dependent variable
+y1hat <- fitted(mode1)
+summary(y1hat)
+
+#predicted
+NNobs <- length(FLUSHOT6)
+set.seed(12345) # just so you can replicate and get same "random" choices
+graph_obs <- (runif(NNobs) < 0.1) # so something like just 1/10 as many obs
+dat_graph <-subset(datus2,graph_obs)  
+
+plot(FLUSHOT6 ~ jitter(X_AGE80, factor = 2), pch = 16, col = rgb(0.5, 0.5, 0.5, alpha = 0.2), data = dat_graph)
+# ^^ that looks like crap since Wages are soooooooo skew!  So try to find some sensible ylim = c(0, ??)
+#plot(FLUSHOT6 ~ jitter(X_AGE80, factor = 2), pch = 16, col = rgb(0.5, 0.5, 0.5, alpha = 0.2), ylim = c(0,150000), data = dat_graph)
+# discus what you see in this plot
+
+# change this line to fit your regression
+to_be_predicted2 <- data.frame( X_AGE80 = 45:70, MEDICARE=0, BPHIGH4=0, X_SMOKER3=0)
+ str(BPHIGH4)
+to_be_predicted2$yhat <- predict(mode1, newdata = to_be_predicted2)
+
+
+lines(yhat ~ X_AGE80, data = to_be_predicted2)
+
+
+
+```
+
+
+
+```{r}
+
+summary(datus2)
+datus2 <- subset(dat3, varb)
+datus2$FLUSHOT6 <- as.factor(datus2$FLUSHOT6)
+#define Variables
+
+attach(datus2)
+#descriptive statistics
+summary(FLUSHOT6)
+table(FLUSHOT6)
+# percentage of Yes and No 
+table(FLUSHOT6)/sum(table(FLUSHOT6))
+
+# predictor variables 1
+summary(MEDICARE)
+table(MEDICARE)
+table(MEDICARE)/sum(table(MEDICARE))
+
+# predictor variable 2
+summary(X_BMI5CAT)
+table(X_BMI5CAT)
+table(X_BMI5CAT)/sum(table(X_BMI5CAT))
+ # predictor variable 3 
+summary(SEX)
+table(SEX)
+table(SEX)/sum(table(SEX))
+
+#logit Model
+Logit1 <- glm(FLUSHOT6 ~ MEDICARE + BPHIGH4 + X_SMOKER3, family=binomial, data = datus2)
+summary(Logit1)
+# can only interpret the increase in more likely or less likely, but not the mangitude 
+
+# Logit models odd ratio
+exp(Logit1$coefficients)
+#odd ratio provides the outcome of predictor variables, 
+#higher than for 1 with most likely means the more liklely of recieving the flue shot. lower the one, the opposite less likely to recieve the flue shot. 
+
+
+#marginal effect
+coefficients(Logit1) #same as coeefiecntes
+
+#predicted probablities logit
+plogit <- predict(Logit1, datus2, type = "response")
+summary(plogit)
+#premodellogit5 <- (round(plogit))
+premodellogit5 <- (plogit > 0.5)
+
+
+#percent correctly predicted values
+
+predtable <- table(pred = premodellogit5, true = datus2$FLUSHOT6)
+predtable
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
